@@ -1,9 +1,18 @@
+# Build
 bin/
 obj/
+
+# User-specific files
 *.user
 *.suo
-*.userosscache
-*.sln.docstates
-.env
-*.db
+
+# VS Code
 .vscode/
+
+# Visual Studio
+.vs/
+
+# Config
+appsettings.json
+*.db
+.env

@@ -11,7 +11,7 @@ namespace Townsward.database
         private const string BasePath = "db";
         private const string DbPrefix = "database-";
         private const string DbExtension = ".sqlite";
-        private const string CurrentDbVersion = "0002"; 
+        private const string CurrentDbVersion = "0001"; 
 
         private static readonly Dictionary<ulong, string> _dbPaths = new();
 
@@ -68,23 +68,12 @@ namespace Townsward.database
             using var connection = new SqliteConnection($"Data Source={dbPath}");
             connection.Open();
 
-            using var command = connection.CreateCommand();
-            command.CommandText =
-            @"
-                CREATE TABLE IF NOT EXISTS Players (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    DiscordUserId INTEGER NOT NULL,
-                    Xp INTEGER NOT NULL DEFAULT 0,
-                    Gold INTEGER NOT NULL DEFAULT 0,
-                    Level INTEGER NOT NULL DEFAULT 1
-                );
-            ";
-            command.ExecuteNonQuery();
+            models.Player.CreateTable(connection);
         }
 
         private static void TransferData(string oldDbPath, string newDbPath)
         {
-            Console.WriteLine("[DB] Migrating data from old DB...");
+            Console.WriteLine("[DB] Starting table data transfer...");
 
             using var oldConn = new SqliteConnection($"Data Source={oldDbPath}");
             using var newConn = new SqliteConnection($"Data Source={newDbPath}");
@@ -92,34 +81,8 @@ namespace Townsward.database
             oldConn.Open();
             newConn.Open();
 
-            // Ensure old table exists
-            using var checkCmd = oldConn.CreateCommand();
-            checkCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='Players'";
-            using var reader = checkCmd.ExecuteReader();
-            if (!reader.HasRows)
-            {
-                Console.WriteLine("[DB] ⚠️ No Players table found in old DB. Skipping migration.");
-                return;
-            }
-
-            using var selectCmd = oldConn.CreateCommand();
-            selectCmd.CommandText = "SELECT DiscordUserId, Xp, Gold, Level FROM Players";
-            using var selectReader = selectCmd.ExecuteReader();
-
-            while (selectReader.Read())
-            {
-                using var insertCmd = newConn.CreateCommand();
-                insertCmd.CommandText = @"
-                    INSERT INTO Players (DiscordUserId, Xp, Gold, Level)
-                    VALUES ($uid, $xp, $gold, $lvl)";
-                insertCmd.Parameters.AddWithValue("$uid", selectReader.GetInt64(0));
-                insertCmd.Parameters.AddWithValue("$xp", selectReader.GetInt32(1));
-                insertCmd.Parameters.AddWithValue("$gold", selectReader.GetInt32(2));
-                insertCmd.Parameters.AddWithValue("$lvl", selectReader.GetInt32(3));
-                insertCmd.ExecuteNonQuery();
-            }
-
-            Console.WriteLine("[DB] Player data migrated.");
+            // Let each model handle its own transfer logic
+            models.Player.TransferData(oldConn, newConn);
         }
 
         public static SqliteConnection GetConnection(ulong guildId)

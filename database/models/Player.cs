@@ -8,12 +8,10 @@ namespace Townsward.database.models
 {
     public class Player
     {
-        public int id {  get; set; }
-        public ulong discordUserId { get; set; }
-        public ulong guildId { get; set; }
+        public int Id { get; set; }
+        public ulong DiscordUserId { get; set; }
 
-        public string name { get; set; }
-        public int xp { get; set; }
-        public int gold { get; set; }
+        public int Xp { get; set; }
+        public int Gold { get; set; }
     }
 }

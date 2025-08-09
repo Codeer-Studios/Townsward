@@ -6,10 +6,7 @@ using System.Threading.Tasks;
 
 namespace Townsward.database.models
 {
-    public class Guild
+    internal class Town
     {
-        public int id { get; set; }
-        public ulong discordGuildId { get; set; }
-        public string name { get; set; }
     }
 }

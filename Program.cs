@@ -38,8 +38,12 @@ namespace Townsward
 
             client.Ready += Client_Ready;
 
+
             // Connect the bot
             await client.ConnectAsync();
+
+            EnsureAllDatabasesUpToDate();
+
             await Task.Delay(-1);
         }
 
@@ -47,6 +51,31 @@ namespace Townsward
         {
             Console.WriteLine("[INFO] Bot is connected and ready.");
             return Task.CompletedTask;
+        }
+
+        public static void EnsureAllDatabasesUpToDate()
+        {
+            var basePath = "db";
+
+            if (!Directory.Exists(basePath))
+                return;
+
+            var guildDirs = Directory.GetDirectories(basePath);
+
+            foreach (var dir in guildDirs)
+            {
+                var folderName = Path.GetFileName(dir);
+
+                if (ulong.TryParse(folderName, out ulong guildId))
+                {
+                    Console.WriteLine($"[DB] Checking DB for guild {guildId}...");
+                    DbManager.EnsureDatabaseUpToDate(guildId);
+                }
+                else
+                {
+                    Console.WriteLine($"[DB WARN] Skipping invalid guild folder: {folderName}");
+                }
+            }
         }
 
     }

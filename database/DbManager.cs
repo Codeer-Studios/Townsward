@@ -12,7 +12,7 @@ namespace Townsward.database
         private const string BasePath = "db";
         private const string DbPrefix = "database-";
         private const string DbExtension = ".sqlite";
-        private const string CurrentDbVersion = "0002";
+        private const string CurrentDbVersion = "0001";
 
         private static readonly Dictionary<ulong, TownswardDbContext> _guildContexts = new();
 
@@ -96,13 +96,22 @@ namespace Townsward.database
             using var oldDb = new TownswardDbContext(oldOptions);
             using var newDb = new TownswardDbContext(newOptions);
 
-            // EXAMPLE: transfer players
-            var oldPlayers = oldDb.Players.ToList();
-            foreach (var player in oldPlayers)
+            if (TableExists(oldDb, "Players"))
             {
-                // Reset ID to avoid PK conflicts
-                player.Id = 0;
-                newDb.Players.Add(player);
+                var oldPlayers = oldDb.Players.ToList();
+
+                foreach (var player in oldPlayers)
+                {
+                    player.Id = 0; // Reset primary key
+                    newDb.Players.Add(player);
+                }
+
+                newDb.SaveChanges();
+                Console.WriteLine("[DB] Player data transferred.");
+            }
+            else
+            {
+                Console.WriteLine("[DB] ⚠️ Old database does not contain 'Players' table. Skipping player transfer.");
             }
 
             newDb.SaveChanges();
@@ -114,6 +123,18 @@ namespace Townsward.database
             var fileName = Path.GetFileNameWithoutExtension(path); // e.g. database-0001
             var parts = fileName.Split('-');
             return parts.Length > 1 ? parts[1] : "unknown";
+        }
+
+        private static bool TableExists(DbContext db, string tableName)
+        {
+            var conn = db.Database.GetDbConnection();
+            conn.Open();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT name FROM sqlite_master WHERE type='table' AND name='{tableName}'";
+            using var reader = cmd.ExecuteReader();
+
+            return reader.HasRows;
         }
 
         public static TownswardDbContext GetContext(ulong guildId)

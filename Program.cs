@@ -3,8 +3,7 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.EventArgs;
 using DSharpPlus.SlashCommands;
 using Townsward.commands;
-using Townsward.Commands;
-using Townsward.Config;
+using Townsward.config;
 
 namespace Townsward
 {

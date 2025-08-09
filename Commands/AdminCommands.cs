@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Townsward.Commands
+namespace Townsward.commands
 {
     public class AdminCommands : ApplicationCommandModule
     {

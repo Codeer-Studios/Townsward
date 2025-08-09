@@ -2,7 +2,7 @@
 
 using Newtonsoft.Json;
 
-namespace Townsward.Config
+namespace Townsward.config
 {
     public class BotConfig
     {

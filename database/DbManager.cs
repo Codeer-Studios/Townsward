@@ -1,9 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Data;
+using System.IO;
 
 namespace Townsward.database
 {
@@ -14,137 +13,51 @@ namespace Townsward.database
         private const string DbExtension = ".sqlite";
         private const string CurrentDbVersion = "0001";
 
-        private static readonly Dictionary<ulong, TownswardDbContext> _guildContexts = new();
+        private static readonly Dictionary<ulong, string> _dbPaths = new();
 
-        public static void EnsureDatabaseUpToDate(ulong guildId)
+        public static void CreateDatabase(ulong guildId)
         {
+            // Build folder and file paths
             string folderPath = Path.Combine(BasePath, guildId.ToString());
-            string newDbPath = Path.Combine(folderPath, $"{DbPrefix}{CurrentDbVersion}{DbExtension}");
+            string dbFileName = $"{DbPrefix}{CurrentDbVersion}{DbExtension}";
+            string dbPath = Path.Combine(folderPath, dbFileName);
 
-            Directory.CreateDirectory(folderPath); // Ensure folder exists
+            // Create folder if it doesn't exist
+            Directory.CreateDirectory(folderPath);
 
-            var existingDbs = Directory.GetFiles(folderPath, $"{DbPrefix}*.sqlite");
-            var existingDb = existingDbs.FirstOrDefault();
+            // Store path for later retrieval
+            _dbPaths[guildId] = dbPath;
 
-            if (existingDb != null && existingDb == newDbPath)
-            {
-                // Already up to date
-                LoadContext(guildId, newDbPath);
-                return;
-            }
+            // Create SQLite DB and table
+            using var connection = new SqliteConnection($"Data Source={dbPath}");
+            connection.Open();
 
-            if (existingDb != null && existingDb != newDbPath)
-            {
-                // Outdated version exists — migrate data
-                Console.WriteLine($"[DB] Outdated DB found for guild {guildId}: {Path.GetFileName(existingDb)}");
+            using var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+                CREATE TABLE IF NOT EXISTS Players (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    DiscordUserId INTEGER NOT NULL,
+                    Xp INTEGER NOT NULL DEFAULT 0,
+                    Gold INTEGER NOT NULL DEFAULT 0,
+                    Level INTEGER NOT NULL DEFAULT 1
+                );
+            ";
+            command.ExecuteNonQuery();
 
-                string oldDbVersion = ExtractVersionFromFilename(existingDb);
-                string backupPath = existingDb.Replace(".sqlite", $"-v{oldDbVersion}-backup.sqlite");
-                File.Move(existingDb, backupPath);
-
-                Console.WriteLine($"[DB] Backed up old DB to: {Path.GetFileName(backupPath)}");
-
-                CreateAndMigrateNewDb(guildId, newDbPath);
-                TransferData(backupPath, newDbPath);
-                File.Delete(backupPath);
-            }
-            else
-            {
-                // No DB exists — create fresh
-                CreateAndMigrateNewDb(guildId, newDbPath);
-            }
+            Console.WriteLine($"[DB] Created database for guild {guildId} at {dbPath}");
         }
 
-        private static void CreateAndMigrateNewDb(ulong guildId, string dbPath)
+        public static SqliteConnection GetConnection(ulong guildId)
         {
-            var options = new DbContextOptionsBuilder<TownswardDbContext>()
-                .UseSqlite($"Data Source={dbPath}")
-                .Options;
+            if (!_dbPaths.TryGetValue(guildId, out var path))
+                throw new InvalidOperationException($"[DB] No database path found for guild {guildId}");
 
-            var context = new TownswardDbContext(options);
-            context.Database.Migrate();
-
-            _guildContexts[guildId] = context;
-            Console.WriteLine($"[DB] Created new DB for guild {guildId}: {Path.GetFileName(dbPath)}");
+            var connection = new SqliteConnection($"Data Source={path}");
+            connection.Open();
+            return connection;
         }
 
-        private static void LoadContext(ulong guildId, string dbPath)
-        {
-            var options = new DbContextOptionsBuilder<TownswardDbContext>()
-                .UseSqlite($"Data Source={dbPath}")
-                .Options;
-
-            var context = new TownswardDbContext(options);
-            context.Database.Migrate();
-
-            _guildContexts[guildId] = context;
-            Console.WriteLine($"[DB] Loaded DB for guild {guildId}: {Path.GetFileName(dbPath)}");
-        }
-
-        private static void TransferData(string oldDbPath, string newDbPath)
-        {
-            Console.WriteLine("[DB] Transferring data to new version...");
-
-            var oldOptions = new DbContextOptionsBuilder<TownswardDbContext>()
-                .UseSqlite($"Data Source={oldDbPath}")
-                .Options;
-
-            var newOptions = new DbContextOptionsBuilder<TownswardDbContext>()
-                .UseSqlite($"Data Source={newDbPath}")
-                .Options;
-
-            using var oldDb = new TownswardDbContext(oldOptions);
-            using var newDb = new TownswardDbContext(newOptions);
-
-            if (TableExists(oldDb, "Players"))
-            {
-                var oldPlayers = oldDb.Players.ToList();
-
-                foreach (var player in oldPlayers)
-                {
-                    player.Id = 0; // Reset primary key
-                    newDb.Players.Add(player);
-                }
-
-                newDb.SaveChanges();
-                Console.WriteLine("[DB] Player data transferred.");
-            }
-            else
-            {
-                Console.WriteLine("[DB] ⚠️ Old database does not contain 'Players' table. Skipping player transfer.");
-            }
-
-            newDb.SaveChanges();
-            Console.WriteLine("[DB] Data transfer complete.");
-        }
-
-        private static string ExtractVersionFromFilename(string path)
-        {
-            var fileName = Path.GetFileNameWithoutExtension(path); // e.g. database-0001
-            var parts = fileName.Split('-');
-            return parts.Length > 1 ? parts[1] : "unknown";
-        }
-
-        private static bool TableExists(DbContext db, string tableName)
-        {
-            var conn = db.Database.GetDbConnection();
-            conn.Open();
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"SELECT name FROM sqlite_master WHERE type='table' AND name='{tableName}'";
-            using var reader = cmd.ExecuteReader();
-
-            return reader.HasRows;
-        }
-
-        public static TownswardDbContext GetContext(ulong guildId)
-        {
-            if (!_guildContexts.TryGetValue(guildId, out var ctx))
-                throw new InvalidOperationException($"No database context for guild {guildId}");
-
-            return ctx;
-        }
-
-        public static bool IsInitialized(ulong guildId) => _guildContexts.ContainsKey(guildId);
+        public static bool IsInitialized(ulong guildId) => _dbPaths.ContainsKey(guildId);
     }
 }

@@ -53,14 +53,14 @@ namespace Townsward
         private static Task OnClientReady(DiscordClient sender, ReadyEventArgs args)
         {
             Console.WriteLine("[INFO] Bot is connected and ready.");
-            Console.WriteLine("[BOT] Checking all connected guild databases...");
+            Console.WriteLine("[BOT] Checking and creating databases for connected guilds...");
 
             foreach (var guild in client.Guilds.Values)
             {
-                DbManager.EnsureDatabaseUpToDate(guild.Id);
+                DbManager.CreateDatabase(guild.Id);
             }
 
-            Console.WriteLine("[BOT] All guild databases validated.");
+            Console.WriteLine("[BOT] All guild databases ensured.");
             return Task.CompletedTask;
         }
 
@@ -68,7 +68,8 @@ namespace Townsward
         {
             Console.WriteLine($"[BOT] Joined or rejoined guild: {args.Guild.Name} ({args.Guild.Id})");
 
-            DbManager.EnsureDatabaseUpToDate(args.Guild.Id);
+            DbManager.CreateDatabase(args.Guild.Id);
+
             return Task.CompletedTask;
         }
     }

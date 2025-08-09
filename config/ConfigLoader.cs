@@ -8,6 +8,7 @@ namespace Townsward.config
     {
         public string token { get; set; }
         public string prefix { get; set; }
+        public string connection { get; set; }
     }
 
     public class ConfigLoader

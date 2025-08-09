@@ -4,6 +4,7 @@ using DSharpPlus.EventArgs;
 using DSharpPlus.SlashCommands;
 using Townsward.commands;
 using Townsward.config;
+using Townsward.database;
 
 namespace Townsward
 {
@@ -15,9 +16,12 @@ namespace Townsward
 
         public static async Task Main(string[] args)
         {
+
             // Load configuration
             var configLoader = new ConfigLoader();
             BotConfig config = await configLoader.ReadAsync();
+
+            DbManager.Init(config.connection);
 
             // Setup Discord client
             var discordConfig = new DiscordConfiguration()
@@ -46,5 +50,6 @@ namespace Townsward
             Console.WriteLine("[INFO] Bot is connected and ready.");
             return Task.CompletedTask;
         }
+
     }
 }

@@ -21,8 +21,6 @@ namespace Townsward
             var configLoader = new ConfigLoader();
             BotConfig config = await configLoader.ReadAsync();
 
-            DbManager.Init(config.connection);
-
             // Setup Discord client
             var discordConfig = new DiscordConfiguration()
             {

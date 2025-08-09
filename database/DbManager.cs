@@ -9,20 +9,29 @@ namespace Townsward.database
 {
     public static class DbManager
     {
-        private static TownswardDbContext _context;
+        private static readonly string BasePath = "db";
 
-        public static void Init(string connectionString)
+        public static bool CreateGuildDirectory(ulong guildId)
         {
-            var options = new DbContextOptionsBuilder<TownswardDbContext>()
-                .UseNpgsql(connectionString)
-                .Options;
+            try
+            {
+                var path = Path.Combine(BasePath, guildId.ToString());
 
-            _context = new TownswardDbContext(options);
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                    Console.WriteLine($"[DB] Created directory: {path}");
+                    return true;
+                }
 
-            // Optional: apply migrations
-            _context.Database.Migrate();
+                Console.WriteLine($"[DB] Directory already exists: {path}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DB ERROR] Failed to create directory for guild {guildId}: {ex.Message}");
+                return false;
+            }
         }
-
-        public static TownswardDbContext Context => _context;
     }
 }

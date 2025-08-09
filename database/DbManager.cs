@@ -12,7 +12,7 @@ namespace Townsward.database
         private const string BasePath = "db";
         private const string DbPrefix = "database-";
         private const string DbExtension = ".sqlite";
-        private const string CurrentDbVersion = "0001";
+        private const string CurrentDbVersion = "0002";
 
         private static readonly Dictionary<ulong, TownswardDbContext> _guildContexts = new();
 

@@ -1,6 +1,9 @@
 ﻿using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.EventArgs;
+using DSharpPlus.SlashCommands;
+using Townsward.commands;
+using Townsward.Commands;
 using Townsward.Config;
 
 namespace Townsward
@@ -27,6 +30,10 @@ namespace Townsward
             };
 
             client = new DiscordClient(discordConfig);
+
+            var slash = client.UseSlashCommands();
+
+            slash.RegisterCommands<AdminCommands>();
 
             client.Ready += Client_Ready;
 

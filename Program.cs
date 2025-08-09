@@ -10,19 +10,17 @@ namespace Townsward
 {
     internal class Program
     {
-
-        private static DiscordClient client { get; set; }
-        private static CommandsNextExtension commands { get; set; }
+        private static DiscordClient client;
+        private static SlashCommandsExtension slash;
 
         public static async Task Main(string[] args)
         {
-
             // Load configuration
             var configLoader = new ConfigLoader();
             BotConfig config = await configLoader.ReadAsync();
 
             // Setup Discord client
-            var discordConfig = new DiscordConfiguration()
+            var discordConfig = new DiscordConfiguration
             {
                 Intents = DiscordIntents.All,
                 Token = config.token,
@@ -32,51 +30,46 @@ namespace Townsward
 
             client = new DiscordClient(discordConfig);
 
-            var slash = client.UseSlashCommands();
-
-            slash.RegisterCommands<AdminCommands>();
-
-            client.Ready += Client_Ready;
-
+            RegisterEvents();
+            RegisterSlashCommands();
 
             // Connect the bot
             await client.ConnectAsync();
-
-            EnsureAllDatabasesUpToDate();
-
             await Task.Delay(-1);
         }
 
-        private static Task Client_Ready(DiscordClient sender, ReadyEventArgs args)
+        private static void RegisterEvents()
+        {
+            client.Ready += OnClientReady;
+            client.GuildCreated += OnGuildCreated;
+        }
+
+        private static void RegisterSlashCommands()
+        {
+            slash = client.UseSlashCommands();
+            slash.RegisterCommands<AdminCommands>();
+        }
+
+        private static Task OnClientReady(DiscordClient sender, ReadyEventArgs args)
         {
             Console.WriteLine("[INFO] Bot is connected and ready.");
+            Console.WriteLine("[BOT] Checking all connected guild databases...");
+
+            foreach (var guild in client.Guilds.Values)
+            {
+                DbManager.EnsureDatabaseUpToDate(guild.Id);
+            }
+
+            Console.WriteLine("[BOT] All guild databases validated.");
             return Task.CompletedTask;
         }
 
-        public static void EnsureAllDatabasesUpToDate()
+        private static Task OnGuildCreated(DiscordClient sender, GuildCreateEventArgs args)
         {
-            var basePath = "db";
+            Console.WriteLine($"[BOT] Joined or rejoined guild: {args.Guild.Name} ({args.Guild.Id})");
 
-            if (!Directory.Exists(basePath))
-                return;
-
-            var guildDirs = Directory.GetDirectories(basePath);
-
-            foreach (var dir in guildDirs)
-            {
-                var folderName = Path.GetFileName(dir);
-
-                if (ulong.TryParse(folderName, out ulong guildId))
-                {
-                    Console.WriteLine($"[DB] Checking DB for guild {guildId}...");
-                    DbManager.EnsureDatabaseUpToDate(guildId);
-                }
-                else
-                {
-                    Console.WriteLine($"[DB WARN] Skipping invalid guild folder: {folderName}");
-                }
-            }
+            DbManager.EnsureDatabaseUpToDate(args.Guild.Id);
+            return Task.CompletedTask;
         }
-
     }
 }

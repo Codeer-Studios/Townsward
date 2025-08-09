@@ -13,5 +13,6 @@ namespace Townsward.database.models
 
         public int Xp { get; set; }
         public int Gold { get; set; }
+
     }
 }
